@@ -1,0 +1,5 @@
+# Default owners for everything
+* @zircote
+
+# Workflow files need admin review
+.github/ @zircote
