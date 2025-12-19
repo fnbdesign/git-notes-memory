@@ -1,22 +1,38 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "script": "session_start.py",
-      "description": "Injects relevant memory context at session startup",
-      "enabled": true
-    },
-    {
-      "event": "UserPromptSubmit",
-      "script": "user_prompt.py",
-      "description": "Detects memorable content (decisions, learnings, blockers) and suggests capture",
-      "enabled": false
-    },
-    {
-      "event": "Stop",
-      "script": "stop.py",
-      "description": "Syncs memory index on session end",
-      "enabled": true
-    }
-  ]
+  "description": "Memory Capture Plugin Hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
 }

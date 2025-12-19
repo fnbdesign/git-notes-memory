@@ -19,6 +19,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import json
 import sys
 
 
@@ -34,14 +35,10 @@ def main() -> None:
         handler_main()
     except ImportError:
         # Library not installed, exit silently (non-blocking)
-        import json
-
         print(json.dumps({"continue": True}))
         sys.exit(0)
     except Exception:
         # Any unexpected error, exit silently (non-blocking)
-        import json
-
         print(json.dumps({"continue": True}))
         sys.exit(0)
 

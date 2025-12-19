@@ -15,7 +15,6 @@ Example prompts that would be captured:
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 
@@ -33,7 +32,7 @@ def should_capture(prompt: str) -> tuple[bool, str]:
         match = re.match(pattern, prompt, re.IGNORECASE)
         if match:
             # Remove marker and return clean content
-            clean = prompt[match.end():].strip()
+            clean = prompt[match.end() :].strip()
             return True, clean
 
     return False, prompt
@@ -49,27 +48,37 @@ def capture_memory(content: str) -> dict:
         from git_notes_memory import get_capture_service
 
         capture = get_capture_service()
-        memory = capture.capture_context(
+
+        # Use the main capture() method with learnings namespace
+        # Extract a summary from the first line or first 100 chars
+        lines = content.strip().split("\n")
+        summary = lines[0][:100] if lines else content[:100]
+
+        result = capture.capture(
+            namespace="learnings",
+            summary=summary,
             content=content,
-            source="prompt-hook",
         )
 
-        return {
-            "success": True,
-            "memory_id": memory.id,
-            "message": f"Captured as memory: {memory.id[:8]}..."
-        }
+        if result.success:
+            return {
+                "success": True,
+                "memory_id": result.memory.id,
+                "message": f"Captured as memory: {result.memory.id[:16]}...",
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.warning or "Capture failed",
+            }
 
     except ImportError:
         return {
             "success": False,
-            "error": "git-notes-memory library not installed"
+            "error": "git-notes-memory library not installed",
         }
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 def main() -> None:
