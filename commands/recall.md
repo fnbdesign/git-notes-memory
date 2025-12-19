@@ -17,7 +17,7 @@ You will help the user recall memories relevant to their current context or quer
 **Arguments format**: `$ARGUMENTS`
 
 Parse the arguments:
-1. Extract `--namespace=<ns>` if present (one of: `decisions`, `learnings`, `context`, `preferences`, `patterns`)
+1. Extract `--namespace=<ns>` if present (one of: `decisions`, `learnings`, `blockers`, `progress`, `reviews`, `patterns`, `retrospective`, `inception`, `elicitation`, `research`)
 2. Extract `--limit=<n>` if present (default: 5)
 3. Everything else is the search query
 4. If no query provided, use recent conversation context
@@ -34,14 +34,14 @@ If query is empty:
 Use Bash to invoke the Python library:
 
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_recall_service
 
 recall = get_recall_service()
 results = recall.search(
     query='''$QUERY''',
     namespace=$NAMESPACE,  # None for all namespaces
-    limit=$LIMIT,
+    k=$LIMIT,
 )
 
 if not results:
@@ -49,8 +49,9 @@ if not results:
 else:
     print(f'## Recalled Memories ({len(results)} results)\n')
     for i, r in enumerate(results, 1):
-        print(f'### {i}. {r.namespace.title()}: {r.title or r.content[:50]}')
-        print(f'**Relevance**: {r.score:.2f} | **Captured**: {r.created_at[:10]}')
+        # Use summary (not title) and timestamp (not created_at)
+        print(f'### {i}. {r.namespace.title()}: {r.summary[:50]}')
+        print(f'**Relevance**: {r.score:.2f} | **Captured**: {r.timestamp.strftime(\"%Y-%m-%d\")}')
         print(f'> {r.content[:200]}...\n')
 "
 ```
@@ -58,7 +59,7 @@ else:
 Replace:
 - `$QUERY` with the search query
 - `$NAMESPACE` with `'$ns'` or `None`
-- `$LIMIT` with the limit number
+- `$LIMIT` with the limit number (default 5)
 
 ### Step 4: Present Results
 
@@ -67,15 +68,15 @@ Format the output as:
 ```
 ## Recalled Memories (3 results)
 
-### 1. Decision: Use PostgreSQL for main database
+### 1. Decisions: Use PostgreSQL for main database
 **Relevance**: 0.92 | **Captured**: 2024-01-15
 > Due to JSONB support and strong ecosystem for Python...
 
-### 2. Learning: Connection pooling best practices
+### 2. Learnings: Connection pooling best practices
 **Relevance**: 0.85 | **Captured**: 2024-01-10
 > Always use connection pooling in production to prevent...
 
-### 3. Context: Database schema location
+### 3. Progress: Database schema completed
 **Relevance**: 0.78 | **Captured**: 2024-01-08
 > Database migrations are in migrations/ directory...
 ```
@@ -96,8 +97,9 @@ No relevant memories found for your query.
 |-----------|----------|
 | `decisions` | Architectural and design decisions |
 | `learnings` | Knowledge and discoveries |
-| `context` | Project-specific information |
-| `preferences` | User preferences and style |
+| `blockers` | Obstacles and impediments |
+| `progress` | Milestones and completions |
+| `reviews` | Code review findings |
 | `patterns` | Recurring patterns and idioms |
 
 ## Examples
@@ -113,3 +115,15 @@ No relevant memories found for your query.
 
 **User**: `/memory:recall`
 **Action**: Extract context from recent conversation and search
+
+## Memory Capture Reminder
+
+After showing recalled memories, if the conversation reveals new insights worth preserving, remind the user:
+
+```
+💡 **Capture tip**: If you discover something worth remembering, use:
+- `[remember] <insight>` - Inline capture of learnings
+- `/memory:capture <namespace> <content>` - Explicit capture with namespace
+```
+
+Consider whether the current context or findings should be captured for future recall.

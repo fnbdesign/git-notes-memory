@@ -1,6 +1,6 @@
 ---
 description: Synchronize the memory index with git notes
-argument-hint: "[incremental|full|verify] [--repair] [--dry-run]"
+argument-hint: "[full|verify|repair] [--dry-run]"
 allowed-tools: ["Bash", "Read"]
 ---
 
@@ -17,9 +17,8 @@ You will help the user synchronize or repair the memory index.
 **Arguments format**: `$ARGUMENTS`
 
 Parse the arguments:
-1. First positional argument is mode: `incremental` (default), `full`, or `verify`
-2. Extract `--repair` flag if present
-3. Extract `--dry-run` flag if present
+1. First positional argument is mode: `incremental` (default), `full`, `verify`, or `repair`
+2. Extract `--dry-run` flag if present
 
 ### Step 2: Execute Sync
 
@@ -27,82 +26,86 @@ Use Bash to invoke the Python library based on mode:
 
 **Incremental Sync** (default):
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_sync_service
+import time
 
 sync = get_sync_service()
-stats = sync.incremental_sync()
+start = time.time()
+count = sync.reindex(full=False)
+duration = time.time() - start
 
 print('## Sync Complete (Incremental)\n')
 print('| Metric | Value |')
 print('|--------|-------|')
-print(f'| Notes scanned | {stats.get(\"scanned\", 0)} |')
-print(f'| New indexed | {stats.get(\"added\", 0)} |')
-print(f'| Updated | {stats.get(\"updated\", 0)} |')
-print(f'| Removed | {stats.get(\"removed\", 0)} |')
-print(f'| Errors | {stats.get(\"errors\", 0)} |')
-print(f'| Duration | {stats.get(\"duration_ms\", 0)/1000:.2f}s |')
+print(f'| Memories indexed | {count} |')
+print(f'| Duration | {duration:.2f}s |')
 "
 ```
 
 **Full Reindex**:
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_sync_service
+import time
 
 sync = get_sync_service()
-stats = sync.full_reindex()
+start = time.time()
+count = sync.reindex(full=True)
+duration = time.time() - start
 
 print('## Sync Complete (Full Reindex)\n')
 print('| Metric | Value |')
 print('|--------|-------|')
-print(f'| Notes scanned | {stats.get(\"scanned\", 0)} |')
-print(f'| Indexed | {stats.get(\"indexed\", 0)} |')
-print(f'| Errors | {stats.get(\"errors\", 0)} |')
-print(f'| Duration | {stats.get(\"duration_ms\", 0)/1000:.2f}s |')
+print(f'| Memories indexed | {count} |')
+print(f'| Duration | {duration:.2f}s |')
 "
 ```
 
 **Verify Consistency**:
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_sync_service
 
 sync = get_sync_service()
-report = sync.verify_consistency()
+result = sync.verify_consistency()
 
-if report.get('consistent'):
-    print('## Verification: ✅ Consistent\n')
-    print(f'Index and git notes are in sync.')
-    print(f'Total memories: {report.get(\"total\", 0)}')
+if result.is_consistent:
+    print('## Verification: Consistent\n')
+    print('Index and git notes are in sync.')
 else:
-    print('## Verification: ⚠️ Inconsistencies Found\n')
+    print('## Verification: Inconsistencies Found\n')
     print('| Issue | Count |')
     print('|-------|-------|')
-    print(f'| Missing from index | {len(report.get(\"missing_from_index\", []))} |')
-    print(f'| Missing from git | {len(report.get(\"missing_from_git\", []))} |')
-    print(f'| Out of sync | {len(report.get(\"out_of_sync\", []))} |')
+    print(f'| Missing from index | {len(result.missing_in_index)} |')
+    print(f'| Orphaned in index | {len(result.orphaned_in_index)} |')
+    print(f'| Content mismatch | {len(result.mismatched)} |')
     print('')
-    print('Run `/memory:sync verify --repair` to fix issues.')
+    print('Run \`/memory:sync repair\` to fix issues.')
 "
 ```
 
-**Verify with Repair**:
+**Repair**:
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_sync_service
 
 sync = get_sync_service()
-report = sync.verify_and_repair()
 
-print('## Repair Complete\n')
-print('| Action | Count |')
-print('|--------|-------|')
-print(f'| Added to index | {report.get(\"added\", 0)} |')
-print(f'| Removed from index | {report.get(\"removed\", 0)} |')
-print(f'| Updated | {report.get(\"updated\", 0)} |')
-print('')
-print('Index is now consistent with git notes.')
+# First verify to get current state
+verification = sync.verify_consistency()
+if verification.is_consistent:
+    print('## No Repair Needed\n')
+    print('Index is already consistent with git notes.')
+else:
+    # Perform repair
+    repaired = sync.repair(verification)
+    print('## Repair Complete\n')
+    print('| Action | Count |')
+    print('|--------|-------|')
+    print(f'| Issues fixed | {repaired} |')
+    print('')
+    print('Index is now consistent with git notes.')
 "
 ```
 
@@ -110,17 +113,17 @@ print('Index is now consistent with git notes.')
 
 If `--dry-run` is specified, show what would happen without making changes:
 ```bash
-python3 -c "
+uv run python3 -c "
 from git_notes_memory import get_sync_service
 
 sync = get_sync_service()
-plan = sync.plan_sync()  # Returns what would be done
+result = sync.verify_consistency()
 
 print('## Dry Run - No Changes Made\n')
 print('**Would perform:**')
-print(f'- Add {plan.get(\"to_add\", 0)} memories to index')
-print(f'- Update {plan.get(\"to_update\", 0)} memories')
-print(f'- Remove {plan.get(\"to_remove\", 0)} orphaned entries')
+print(f'- Add {len(result.missing_in_index)} memories to index')
+print(f'- Remove {len(result.orphaned_in_index)} orphaned entries')
+print(f'- Update {len(result.mismatched)} mismatched entries')
 print('')
 print('Run without --dry-run to apply changes.')
 "
@@ -130,10 +133,10 @@ print('Run without --dry-run to apply changes.')
 
 | Mode | When to Use |
 |------|-------------|
-| `incremental` | After normal use, quick sync of new changes |
+| `incremental` | After normal use, quick sync of new changes (default) |
 | `full` | After major changes, index seems corrupted |
 | `verify` | To check consistency without changes |
-| `verify --repair` | To fix detected inconsistencies |
+| `repair` | To fix detected inconsistencies |
 
 ## Examples
 
@@ -146,8 +149,18 @@ print('Run without --dry-run to apply changes.')
 **User**: `/memory:sync verify`
 **Action**: Check for inconsistencies
 
-**User**: `/memory:sync verify --repair`
+**User**: `/memory:sync repair`
 **Action**: Fix any inconsistencies found
 
 **User**: `/memory:sync full --dry-run`
 **Action**: Show what full reindex would do
+
+## Memory Capture Reminder
+
+After a sync operation, remind the user that new memories are immediately available:
+
+```
+💡 **Ready to capture**: Your memory index is now synced. Use:
+- `[remember] <learning>` - Quick inline capture
+- `/memory:capture <namespace> <content>` - Explicit capture
+```

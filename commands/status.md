@@ -22,63 +22,90 @@ Check if `--verbose` flag is present.
 
 **Basic Status**:
 ```bash
-python3 -c "
-from git_notes_memory import get_sync_service, get_index_service
-from git_notes_memory.config import EMBEDDING_MODEL
-import os
+uv run python3 -c "
+from git_notes_memory import get_sync_service
+from git_notes_memory.index import IndexService
+from git_notes_memory.config import get_embedding_model, get_index_path, get_data_path
 
 sync = get_sync_service()
-index = get_index_service()
-
-stats = index.get_statistics()
-last_sync = sync.get_last_sync_time()
+index_path = get_index_path()
 
 print('## Memory System Status\n')
 print('| Metric | Value |')
 print('|--------|-------|')
-print(f'| Total Memories | {stats.get(\"total\", 0)} |')
-print(f'| Index Status | {\"Healthy\" if stats.get(\"healthy\", True) else \"Needs Repair\"} |')
-print(f'| Last Sync | {last_sync or \"Never\"} |')
-print(f'| Embedding Model | {EMBEDDING_MODEL} |')
-print(f'| Storage Location | .git/notes/memory/* |')
+
+if index_path.exists():
+    index = IndexService(index_path)
+    index.initialize()
+    stats = index.get_stats()
+
+    print(f'| Total Memories | {stats.total_memories} |')
+    print(f'| Index Status | Healthy |')
+    last_sync = stats.last_sync.strftime('%Y-%m-%d %H:%M:%S') if stats.last_sync else 'Never'
+    print(f'| Last Sync | {last_sync} |')
+
+    size_kb = stats.index_size_bytes / 1024
+    size_str = f'{size_kb/1024:.1f} MB' if size_kb > 1024 else f'{size_kb:.1f} KB'
+    print(f'| Index Size | {size_str} |')
+    index.close()
+else:
+    print('| Total Memories | 0 |')
+    print('| Index Status | Not initialized |')
+    print('| Last Sync | Never |')
+    print('| Index Size | 0 KB |')
+
+print(f'| Embedding Model | {get_embedding_model()} |')
+print(f'| Data Directory | {get_data_path()} |')
 "
 ```
 
 **Verbose Status**:
 ```bash
-python3 -c "
-from git_notes_memory import get_sync_service, get_index_service, get_lifecycle_manager
-from git_notes_memory.config import EMBEDDING_MODEL, NAMESPACES
-import os
+uv run python3 -c "
+from git_notes_memory import get_sync_service
+from git_notes_memory.index import IndexService
+from git_notes_memory.config import get_embedding_model, get_index_path, get_data_path, NAMESPACES
+import subprocess
 
 sync = get_sync_service()
-index = get_index_service()
-lifecycle = get_lifecycle_manager()
-
-stats = index.get_statistics()
-last_sync = sync.get_last_sync_time()
-summary = lifecycle.get_summary()
+index_path = get_index_path()
 
 print('## Memory System Status (Detailed)\n')
+
+if not index_path.exists():
+    print('Index not initialized. Run \`/memory:sync\` to initialize.')
+    exit(0)
+
+index = IndexService(index_path)
+index.initialize()
+stats = index.get_stats()
 
 print('### Summary')
 print('| Metric | Value |')
 print('|--------|-------|')
-print(f'| Total Memories | {stats.get(\"total\", 0)} |')
-print(f'| Index Status | {\"Healthy\" if stats.get(\"healthy\", True) else \"Needs Repair\"} |')
-print(f'| Last Sync | {last_sync or \"Never\"} |')
+print(f'| Total Memories | {stats.total_memories} |')
+print(f'| Index Status | Healthy |')
+last_sync = stats.last_sync.strftime('%Y-%m-%d %H:%M:%S') if stats.last_sync else 'Never'
+print(f'| Last Sync | {last_sync} |')
 print('')
 
 print('### By Namespace')
-print('| Namespace | Count | Active | Archived |')
-print('|-----------|-------|--------|----------|')
-for ns in NAMESPACES:
-    ns_stats = stats.get(\"by_namespace\", {}).get(ns, {})
-    count = ns_stats.get(\"total\", 0)
-    active = ns_stats.get(\"active\", 0)
-    archived = ns_stats.get(\"archived\", 0)
-    print(f'| {ns} | {count} | {active} | {archived} |')
+print('| Namespace | Count |')
+print('|-----------|-------|')
+if stats.by_namespace:
+    for ns, count in stats.by_namespace:
+        print(f'| {ns} | {count} |')
+else:
+    print('| (none) | 0 |')
 print('')
+
+if stats.by_spec:
+    print('### By Spec')
+    print('| Spec | Count |')
+    print('|------|-------|')
+    for spec, count in stats.by_spec:
+        print(f'| {spec or \"(unassigned)\"} | {count} |')
+    print('')
 
 print('### Health Metrics')
 print('| Check | Status |')
@@ -86,48 +113,32 @@ print('|-------|--------|')
 
 # Check git notes accessible
 try:
-    import subprocess
-    result = subprocess.run(['git', 'notes', '--list'], capture_output=True)
+    result = subprocess.run(['git', 'notes', 'list'], capture_output=True)
     git_ok = result.returncode == 0
 except:
     git_ok = False
 print(f'| Git notes accessible | {\"✓\" if git_ok else \"✗\"} |')
 
 # Check index consistency
-consistency = sync.quick_verify()
-print(f'| Index consistency | {\"✓\" if consistency else \"⚠\"} |')
-
-# Check embedding model
 try:
-    from git_notes_memory.embedding import get_embedding_service
-    emb = get_embedding_service()
-    emb_ok = emb.is_loaded()
+    verification = sync.verify_consistency()
+    consistent = verification.is_consistent
+except:
+    consistent = False
+print(f'| Index consistency | {\"✓\" if consistent else \"⚠\"} |')
+
+# Check embedding model availability
+try:
+    from git_notes_memory.embedding import EmbeddingService
+    emb = EmbeddingService()
+    emb_ok = True
 except:
     emb_ok = False
-print(f'| Embedding model loaded | {\"✓\" if emb_ok else \"○\"} |')
+print(f'| Embedding model available | {\"✓\" if emb_ok else \"○\"} |')
 
-# Check disk space
 print(f'| Disk space adequate | ✓ |')
-print('')
 
-print('### Lifecycle Summary')
-if summary:
-    print(f'- Active: {summary.get(\"active\", 0)}')
-    print(f'- Resolved: {summary.get(\"resolved\", 0)}')
-    print(f'- Archived: {summary.get(\"archived\", 0)}')
-    print(f'- Tombstoned: {summary.get(\"tombstoned\", 0)}')
-else:
-    print('No lifecycle data available.')
-print('')
-
-print('### Recent Activity')
-recent = index.get_recent_activity()
-if recent:
-    print(f'- {recent.get(\"captured_today\", 0)} memories captured today')
-    print(f'- {recent.get(\"recalls_today\", 0)} recalls performed')
-    print(f'- Last pattern detected: {recent.get(\"last_pattern\", \"N/A\")}')
-else:
-    print('No recent activity data.')
+index.close()
 "
 ```
 
@@ -136,11 +147,11 @@ else:
 If issues are detected, show recommendations:
 
 ```
-### ⚠️ Issues Detected
+### Recommendations
 
 1. **Index out of sync** - Run `/memory:sync` to update
-2. **Embedding model not loaded** - First search will be slow
-3. **Many archived memories** - Consider running lifecycle cleanup
+2. **No memories captured** - Use `/memory:capture` to store your first memory
+3. **Embedding model not loaded** - First search will be slower while model loads
 ```
 
 ## Output Sections
@@ -149,9 +160,8 @@ If issues are detected, show recommendations:
 |---------|-------------|
 | Summary | Basic counts and status |
 | By Namespace | Breakdown by memory type |
+| By Spec | Breakdown by specification |
 | Health Metrics | System health checks |
-| Lifecycle Summary | Memory state distribution |
-| Recent Activity | Usage statistics |
 
 ## Examples
 
@@ -160,3 +170,16 @@ If issues are detected, show recommendations:
 
 **User**: `/memory:status --verbose`
 **Action**: Show detailed status with all sections
+
+## Memory Capture Reminder
+
+After showing status, remind the user about capture capabilities:
+
+```
+💡 **Capture memories**: Use markers anywhere in your messages:
+- `[remember] <insight>` - Captures a learning
+- `[capture] <decision>` - Captures any memory type
+- `/memory:capture <namespace> <content>` - Explicit capture
+
+Available namespaces: decisions, learnings, blockers, progress, reviews, patterns
+```
