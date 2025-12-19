@@ -3,22 +3,30 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "git-notes-memory-manager"
+name = "git-notes-memory"
 dynamic = ["version"]
-description = "Git notes-based memory management system"
+description = "Git-native, semantically-searchable memory storage for Claude Code"
 readme = "README.md"
 license = {text = "MIT"}
-keywords = []
+keywords = ["git", "notes", "memory", "semantic-search", "embeddings", "claude-code"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Version Control :: Git",
 ]
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0",
+    "sentence-transformers>=2.2.0",
+    "sqlite-vec>=0.1.1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -30,16 +38,17 @@ dev = [
     "bandit>=1.8.0",
     "pip-audit>=2.9.0",
     "build>=1.0.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/zircote/git-notes-memory-manager"
-Documentation = "https://github.com/zircote/git-notes-memory-manager#readme"
-Repository = "https://github.com/zircote/git-notes-memory-manager.git"
-"Bug Tracker" = "https://github.com/zircote/git-notes-memory-manager/issues"
+Homepage = "https://github.com/zircote/git-notes-memory"
+Documentation = "https://github.com/zircote/git-notes-memory#readme"
+Repository = "https://github.com/zircote/git-notes-memory.git"
+"Bug Tracker" = "https://github.com/zircote/git-notes-memory/issues"
 
 [project.scripts]
-git-notes-memory-manager = "git_notes_memory_manager.main:main"
+git-notes-memory = "git_notes_memory.main:main"
 
 # UV/Astral dependency groups (modern tooling)
 [dependency-groups]
@@ -52,21 +61,22 @@ dev = [
     "bandit>=1.8.0",
     "pip-audit>=2.9.0",
     "build>=1.0.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 # Hatch build configuration
 [tool.hatch.version]
-path = "src/git_notes_memory_manager/__init__.py"
+path = "src/git_notes_memory/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/git_notes_memory_manager"]
+packages = ["src/git_notes_memory"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/git_notes_memory_manager/**/*.py"]
+include = ["src/git_notes_memory/**/*.py"]
 
 # Ruff - Linting and Formatting
 [tool.ruff]
-target-version = "py313"
+target-version = "py311"
 line-length = 88
 src = ["src", "tests"]
 
@@ -86,17 +96,24 @@ select = [
     "SIM",    # flake8-simplify
     "S",      # flake8-bandit (security)
 ]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+    "E501",    # line length handled by formatter
+    "SIM108",  # ternary operator - prefer explicit if/else for readability
+]
 
 [tool.ruff.lint.isort]
-known-first-party = ["git_notes_memory_manager"]
+known-first-party = ["git_notes_memory"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S105", "S106", "ARG001"]
+"tests/*" = ["S101", "S105", "S106", "S108", "S603", "S607", "ARG001", "ARG002", "B017", "E402", "F841", "SIM117"]
+"src/git_notes_memory/embedding.py" = ["S101"]  # assert for type narrowing
+"src/git_notes_memory/git_ops.py" = ["S603"]  # subprocess with validated inputs
+"src/git_notes_memory/index.py" = ["S608"]  # SQL placeholders are safe (we generate ? only)
+"src/git_notes_memory/sync.py" = ["S324", "S110", "S112"]  # md5 for content hashing (not security), exception handling patterns
 
 # mypy - Type Checking
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_ignores = true
@@ -113,17 +130,29 @@ show_error_codes = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = "sentence_transformers.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sqlite_vec.*"
+ignore_missing_imports = true
+
 # pytest - Testing
-[tool.pytest]
+[tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = ["-ra", "--strict-markers", "--strict-config", "-v"]
 filterwarnings = ["error"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
 
 # Coverage
 [tool.coverage.run]
-source = ["src/git_notes_memory_manager"]
+source = ["src/git_notes_memory"]
 branch = true
 omit = ["*/tests/*", "*/__pycache__/*"]
 

@@ -1,23 +1,69 @@
-# git-notes-memory-manager
+# git-notes-memory
 
-Git notes-based memory management system
+Git-native, semantically-searchable memory storage for Claude Code.
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Overview
+
+`git-notes-memory` provides a memory capture and recall system that stores memories as git notes with semantic search capabilities via sqlite-vec embeddings. It's designed to work as both a standalone Python library and a Claude Code plugin.
+
+### Features
+
+- **Git-native storage**: Memories stored as git notes that sync with push/pull
+- **Semantic search**: Find relevant memories via sentence-transformer embeddings
+- **10 memory namespaces**: inception, elicitation, research, decisions, progress, blockers, reviews, learnings, retrospective, patterns
+- **Progressive hydration**: Load memory content incrementally (SUMMARY → FULL → FILES)
+- **Concurrent-safe**: File locking prevents corruption from parallel captures
+- **XDG-compliant**: Standard paths on all platforms
 
 ## Installation
 
 ```bash
 # Using uv (recommended)
-uv add git-notes-memory-manager
+uv add git-notes-memory
 
 # Using pip
-pip install git-notes-memory-manager
+pip install git-notes-memory
 ```
+
+## Quick Start
+
+```python
+from git_notes_memory import get_capture_service, get_recall_service
+
+# Capture a memory
+capture = get_capture_service()
+result = capture.capture(
+    namespace="decisions",
+    summary="Chose PostgreSQL for persistence",
+    content="Evaluated SQLite vs PostgreSQL. PostgreSQL wins for concurrency."
+)
+
+# Recall memories
+recall = get_recall_service()
+memories = recall.search("database choice", namespace="decisions", limit=5)
+```
+
+## Claude Code Plugin
+
+When used as a Claude Code plugin, the following commands are available:
+
+- `/remember <namespace> <summary>` - Capture a memory
+- `/recall <query>` - Search memories semantically
+- `/context <spec>` - Load all memories for a spec
+- `/memory status` - Show index statistics
+- `/memory reindex` - Rebuild the search index
+- `/memory verify` - Check index consistency
+- `/memory gc` - Garbage collect old memories
 
 ## Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/zircote/git-notes-memory-manager.git
-cd git-notes-memory-manager
+git clone https://github.com/zircote/git-notes-memory.git
+cd git-notes-memory
 
 # Install with dev dependencies
 uv sync
@@ -29,14 +75,28 @@ make test
 make quality
 ```
 
-## Usage
+## Configuration
 
-```python
-from git_notes_memory_manager import main
+Environment variables:
 
-# Example usage
-main()
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MEMORY_PLUGIN_DATA_DIR` | Data directory path | `~/.local/share/memory-plugin/` |
+| `MEMORY_PLUGIN_GIT_NAMESPACE` | Git notes namespace | `refs/notes/mem` |
+| `MEMORY_PLUGIN_EMBEDDING_MODEL` | Embedding model name | `all-MiniLM-L6-v2` |
+| `MEMORY_PLUGIN_AUTO_CAPTURE` | Enable auto-capture hook | `false` |
+
+## Requirements
+
+- Python 3.11+
+- Git 2.25+ (for git notes features)
+- ~500MB disk space (for embedding model on first use)
+
+## Documentation
+
+- [User Guide](docs/USER_GUIDE.md) - Complete usage guide with examples
+- [Developer Guide](docs/DEVELOPER_GUIDE.md) - API reference for library users
+- [Changelog](CHANGELOG.md) - Version history
 
 ## License
 

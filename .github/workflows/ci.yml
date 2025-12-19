@@ -62,7 +62,7 @@ jobs:
       run: uv sync
 
     - name: Run tests
-      run: uv run pytest --cov=git_notes_memory_manager --cov-report=xml --cov-report=term-missing --cov-fail-under=80 -v
+      run: uv run pytest --cov=src/git_notes_memory --cov-report=xml --cov-report=term-missing --cov-fail-under=80 -v
 
     - name: Upload coverage
       uses: codecov/codecov-action@v4

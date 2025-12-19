@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "event": "UserPromptSubmit",
+      "script": "userpromptsubmit.py",
+      "description": "Optional: Captures significant prompts as memories when marker is present",
+      "enabled": false
+    },
+    {
+      "event": "Stop",
+      "script": "stop.py",
+      "description": "Syncs memory index on session end",
+      "enabled": true
+    }
+  ]
+}
