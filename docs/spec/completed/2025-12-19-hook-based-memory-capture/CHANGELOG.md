@@ -25,3 +25,14 @@ All notable changes to this specification will be documented in this file.
 - Capture intelligence: LLM-assisted via prompt-type hooks with confidence thresholds
 - Context format: XML-structured with hierarchical organization
 - Token management: Adaptive budget based on project complexity (500-3000 tokens)
+
+## [COMPLETED] - 2025-12-19
+
+### Project Closed
+- Final status: success
+- Actual effort: 1 day, 27 tasks completed, 132 tests
+- Moved to: docs/spec/completed/2025-12-19-hook-based-memory-capture
+
+### Retrospective Summary
+- What went well: Comprehensive planning with 5 phases and 7 ADRs, test-first approach caught bugs early, all performance targets met (<10ms pipeline, <50ms detection), zero breaking changes
+- What to improve: Error path testing earlier (JSON output bug found in manual testing), integration testing of hook scripts alongside unit tests
