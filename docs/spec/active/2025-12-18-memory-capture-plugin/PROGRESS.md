@@ -13,10 +13,10 @@ status: in-progress
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 24 |
-| Completed | 22 |
+| Completed | 23 |
 | In Progress | 1 |
-| Pending | 1 |
-| Progress | 92% |
+| Pending | 0 |
+| Progress | 96% |
 
 ## Phase Progress
 
@@ -27,7 +27,7 @@ status: in-progress
 | Phase 3: Core Services | 4 | 4 | 100% |
 | Phase 4: Advanced Features | 3 | 3 | 100% |
 | Phase 5: Plugin Integration | 4 | 4 | 100% |
-| Phase 6: Polish & Release | 4 | 2 | 50% |
+| Phase 6: Polish & Release | 4 | 3 | 75% |
 
 ---
 
@@ -317,14 +317,19 @@ status: in-progress
   - [x] Dependencies resolve (verified in isolated venv)
 
 ### Task 6.4: GitHub Release
-- **Status**: pending
-- **Started**: -
-- **Completed**: -
+- **Status**: done
+- **Started**: 2025-12-19
+- **Completed**: 2025-12-19
 - **Description**: Create GitHub release
+- **Release URL**: https://github.com/zircote/git-notes-memory-manager/releases/tag/v0.1.0
 - **Acceptance Criteria**:
-  - [ ] Release published
-  - [ ] Release notes complete
-  - [ ] Can install via GitHub URL
+  - [x] Release published
+  - [x] Release notes complete (CHANGELOG.md content)
+  - [x] Can install via GitHub URL
+- **Install Command**:
+  ```bash
+  pip install https://github.com/zircote/git-notes-memory-manager/releases/download/v0.1.0/git_notes_memory-0.1.0-py3-none-any.whl
+  ```
 
 ---
 
@@ -357,3 +362,4 @@ _None recorded yet._
 | 2025-12-19 | 6.1 | Comprehensive testing: Fixed all lint/type errors (test mocks updated for list_all→get_all_ids+get_batch pattern), security warnings resolved (MD5 usedforsecurity=False, SQL injection nosec comments). **910 tests passing, 93.65% coverage, all CI checks pass.** |
 | 2025-12-19 | 6.2 | Documentation: Created USER_GUIDE.md (439 lines) with concepts, installation, Python library usage, Claude Code plugin commands, namespaces table, search tips, configuration, troubleshooting. Created DEVELOPER_GUIDE.md (701 lines) with full API reference for CaptureService, RecallService, SyncService, all models, exceptions, utilities. Created CHANGELOG.md (108 lines) in Keep a Changelog format. Updated README.md with documentation links. |
 | 2025-12-19 | 6.3 (partial) | PyPI Release: Built package with `uv build` (sdist 64KB, wheel 73KB). Verified installation in isolated venv - imports work, version correct (0.1.0), dependencies resolve. **Blocked**: PyPI token required for `uv publish`. |
+| 2025-12-19 | 6.4 | GitHub Release: Pushed branch and tag to remote. Created GitHub release v0.1.0 with wheel and sdist assets. Release URL: https://github.com/zircote/git-notes-memory-manager/releases/tag/v0.1.0. Can install via `pip install <wheel-url>`. |
