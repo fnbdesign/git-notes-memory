@@ -12,12 +12,22 @@ Environment Variables:
 XDG Compliance:
     By default, data is stored in $XDG_DATA_HOME/memory-plugin/ which
     defaults to ~/.local/share/memory-plugin/ if XDG_DATA_HOME is not set.
+
+.env File Support:
+    Place a .env file in the project root or working directory to set
+    environment variables. See .env.example for available options.
 """
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env file early, before any environment variable access
+# This looks for .env in the current directory and parent directories
+load_dotenv()
 
 __all__ = [
     # Namespaces

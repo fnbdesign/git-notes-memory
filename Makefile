@@ -32,7 +32,7 @@ test:  ## Run tests
 	uv run pytest
 
 test-cov:  ## Run tests with coverage
-	uv run pytest --cov=git_notes_memory_manager --cov-report=html --cov-report=term-missing
+	uv run pytest --cov=git_notes_memory --cov-report=html --cov-report=term-missing
 
 lint:  ## Run linter (ruff)
 	uv run ruff check src/ tests/
@@ -52,7 +52,7 @@ format-check:  ## Check formatting
 	uv run ruff check src/ tests/
 
 coverage:  ## Run tests with coverage threshold
-	uv run pytest --cov=git_notes_memory_manager --cov-report=term-missing --cov-fail-under=80
+	uv run pytest --cov=git_notes_memory --cov-report=term-missing --cov-fail-under=80
 
 quality:  ## Run all quality checks
 	@echo "Running quality checks..."
@@ -75,7 +75,7 @@ quality:  ## Run all quality checks
 	@echo "Security: PASS"
 	@echo ""
 	@echo "5. Tests with coverage..."
-	@uv run pytest --cov=git_notes_memory_manager --cov-report=term-missing --cov-fail-under=80 -q
+	@uv run pytest --cov=git_notes_memory --cov-report=term-missing --cov-fail-under=80 -q
 	@echo ""
 	@echo "ALL QUALITY CHECKS PASSED"
 
