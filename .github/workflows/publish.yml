@@ -9,8 +9,8 @@ jobs:
   publish:
     name: Build and Publish
     runs-on: ubuntu-latest
-    environment: release
     permissions:
+      contents: read  # Required to checkout private repo
       id-token: write  # Required for trusted publishing
 
     steps:
