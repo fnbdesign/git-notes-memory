@@ -339,10 +339,13 @@ class TestHooksConfiguration:
                 for hook in hook_config.get("hooks", []):
                     if hook.get("type") == "command":
                         cmd = hook["command"]
-                        # Extract filename from ${CLAUDE_PLUGIN_ROOT}/hooks/xxx.py
-                        filename = cmd.split("/")[-1]
-                        hook_file = hooks_dir / filename
-                        assert hook_file.exists(), f"Missing hook file: {hook_file}"
+                        # Extract filename(s) from ${CLAUDE_PLUGIN_ROOT}/hooks/...
+                        # Format: "run-hook.sh scriptname.py" (wrapper + script)
+                        last_part = cmd.split("/")[-1]
+                        files = last_part.split()
+                        for filename in files:
+                            hook_file = hooks_dir / filename
+                            assert hook_file.exists(), f"Missing hook file: {hook_file}"
 
     def test_hook_timeouts_reasonable(self) -> None:
         """Test hook timeouts are within reasonable bounds."""

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh sessionstart.py",
             "timeout": 120
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh userpromptsubmit.py",
             "timeout": 60
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh posttooluse.py",
             "timeout": 60
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/precompact.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh precompact.py",
             "timeout": 60
           }
         ]
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/stop.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.sh stop.py",
             "timeout": 60
           }
         ]

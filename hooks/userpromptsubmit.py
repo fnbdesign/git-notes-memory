@@ -12,9 +12,6 @@ Example prompts that would be captured:
 - "[capture] The authentication flow works like this..."
 """
 
-# Bootstrap: Ensure venv exists and re-exec if needed (MUST be first import)
-import bootstrap  # noqa: F401, I001
-
 import json
 import re
 import sys

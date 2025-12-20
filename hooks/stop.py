@@ -17,9 +17,6 @@ Exit codes:
     0 - Success (non-blocking)
 """
 
-# Bootstrap: Ensure venv exists and re-exec if needed (MUST be first import)
-import bootstrap  # noqa: F401, I001
-
 import json
 import sys
 from pathlib import Path

@@ -14,9 +14,6 @@ Environment Variables:
     HOOK_POST_TOOL_USE_MAX_RESULTS: Max memories (default: 3)
 """
 
-# Bootstrap: Ensure venv exists and re-exec if needed (MUST be first import)
-import bootstrap  # noqa: F401, I001
-
 import sys
 from pathlib import Path
 
