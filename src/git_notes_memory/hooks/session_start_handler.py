@@ -30,77 +30,25 @@ from __future__ import annotations
 
 import json
 import logging
-import signal
 import sys
 from typing import Any
 
-from git_notes_memory.config import HOOK_SESSION_START_TIMEOUT
+from git_notes_memory.config import HOOK_SESSION_START_TIMEOUT, get_project_index_path
 from git_notes_memory.hooks.config_loader import load_hook_config
 from git_notes_memory.hooks.context_builder import ContextBuilder
+from git_notes_memory.hooks.guidance_builder import GuidanceBuilder
+from git_notes_memory.hooks.hook_utils import (
+    cancel_timeout,
+    read_json_input,
+    setup_logging,
+    setup_timeout,
+)
 from git_notes_memory.hooks.project_detector import detect_project
+from git_notes_memory.index import IndexService
 
 __all__ = ["main"]
 
 logger = logging.getLogger(__name__)
-
-
-def _setup_logging(debug: bool = False) -> None:
-    """Configure logging based on debug flag.
-
-    Args:
-        debug: If True, log DEBUG level to stderr.
-    """
-    level = logging.DEBUG if debug else logging.WARNING
-    logging.basicConfig(
-        level=level,
-        format="[memory-hook] %(levelname)s: %(message)s",
-        stream=sys.stderr,
-    )
-
-
-def _setup_timeout(timeout: int) -> None:
-    """Set up alarm-based timeout for the hook.
-
-    Args:
-        timeout: Timeout in seconds.
-    """
-
-    def timeout_handler(signum: int, frame: Any) -> None:  # noqa: ARG001
-        """Handle timeout by exiting gracefully."""
-        logger.warning("SessionStart hook timed out after %d seconds", timeout)
-        sys.exit(0)  # Non-blocking failure
-
-    # Only set alarm on Unix systems
-    if hasattr(signal, "SIGALRM"):
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout)
-
-
-def _cancel_timeout() -> None:
-    """Cancel the alarm-based timeout."""
-    if hasattr(signal, "SIGALRM"):
-        signal.alarm(0)
-
-
-def _read_input() -> dict[str, Any]:
-    """Read and parse JSON input from stdin.
-
-    Returns:
-        Parsed JSON data.
-
-    Raises:
-        json.JSONDecodeError: If input is not valid JSON.
-        ValueError: If stdin is empty or not a dict.
-    """
-    input_text = sys.stdin.read()
-    if not input_text.strip():
-        msg = "Empty input received on stdin"
-        raise ValueError(msg)
-    result = json.loads(input_text)
-    if not isinstance(result, dict):
-        msg = f"Expected JSON object, got {type(result).__name__}"
-        raise ValueError(msg)
-    return dict(result)
 
 
 def _validate_input(data: dict[str, Any]) -> bool:
@@ -116,18 +64,43 @@ def _validate_input(data: dict[str, Any]) -> bool:
     return all(field in data and data[field] for field in required_fields)
 
 
-def _write_output(context: str) -> None:
+def _get_memory_count() -> int:
+    """Get total memory count from index.
+
+    Returns:
+        Number of memories indexed, or 0 if index doesn't exist.
+    """
+    try:
+        index_path = get_project_index_path()
+        if not index_path.exists():
+            return 0
+        index = IndexService(index_path)
+        index.initialize()
+        stats = index.get_stats()
+        index.close()
+        return stats.total_memories
+    except Exception:
+        return 0
+
+
+def _write_output(context: str, memory_count: int = 0) -> None:
     """Write hook output to stdout.
 
     Args:
         context: XML context string to inject.
+        memory_count: Number of memories in the system.
     """
-    output = {
+    output: dict[str, Any] = {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
             "additionalContext": context,
         }
     }
+    # Add user-visible status message
+    if memory_count > 0:
+        output["message"] = f"📚 Memory system: {memory_count} memories indexed"
+    else:
+        output["message"] = "📚 Memory system: initialized"
     print(json.dumps(output))
 
 
@@ -144,7 +117,7 @@ def main() -> None:
     config = load_hook_config()
 
     # Set up logging based on config
-    _setup_logging(config.debug)
+    setup_logging(config.debug)
 
     logger.debug("SessionStart hook invoked")
 
@@ -159,11 +132,11 @@ def main() -> None:
 
     # Set up timeout
     timeout = config.timeout or HOOK_SESSION_START_TIMEOUT
-    _setup_timeout(timeout)
+    setup_timeout(timeout, hook_name="SessionStart")
 
     try:
         # Read and validate input
-        input_data = _read_input()
+        input_data = read_json_input()
         logger.debug("Received input: %s", input_data)
 
         if not _validate_input(input_data):
@@ -182,18 +155,42 @@ def main() -> None:
             project_info.spec_id,
         )
 
-        # Build context
-        builder = ContextBuilder(config=config)
-        context = builder.build_context(
+        # Build response guidance if enabled
+        guidance_xml = ""
+        if config.session_start_include_guidance:
+            guidance_builder = GuidanceBuilder()
+            guidance_xml = guidance_builder.build_guidance(
+                config.session_start_guidance_detail.value
+            )
+            logger.debug(
+                "Built response guidance (%d chars, level=%s)",
+                len(guidance_xml),
+                config.session_start_guidance_detail.value,
+            )
+
+        # Build memory context
+        context_builder = ContextBuilder(config=config)
+        memory_context = context_builder.build_context(
             project=project_info.name,
             session_source=session_source,
             spec_id=project_info.spec_id,
         )
 
-        logger.debug("Built context (%d chars)", len(context))
+        logger.debug("Built memory context (%d chars)", len(memory_context))
 
-        # Output result
-        _write_output(context)
+        # Combine guidance and memory context
+        if guidance_xml:
+            full_context = f"{guidance_xml}\n\n{memory_context}"
+        else:
+            full_context = memory_context
+
+        logger.debug("Total context (%d chars)", len(full_context))
+
+        # Get memory count for status message
+        memory_count = _get_memory_count()
+
+        # Output result with memory count
+        _write_output(full_context, memory_count=memory_count)
 
     except json.JSONDecodeError as e:
         logger.error("Failed to parse hook input: %s", e)
@@ -202,7 +199,7 @@ def main() -> None:
         logger.exception("SessionStart hook error: %s", e)
         print(json.dumps({"continue": True}))
     finally:
-        _cancel_timeout()
+        cancel_timeout()
 
     sys.exit(0)
 

@@ -17,6 +17,13 @@ from __future__ import annotations
 import json
 import re
 import sys
+from pathlib import Path
+
+# Bootstrap: Add plugin's src directory to sys.path for self-contained execution
+_plugin_root = Path(__file__).resolve().parent.parent
+_src_path = _plugin_root / "src"
+if _src_path.exists() and str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
 
 
 def should_capture(prompt: str) -> tuple[bool, str]:
@@ -103,12 +110,14 @@ def main() -> None:
     # Capture the memory
     result = capture_memory(content)
 
-    # Output result (Claude Code will display any messages)
+    # Output result with visual indicator
     output = {"continue": True}
     if result.get("success"):
-        output["message"] = result.get("message", "Memory captured")
+        # Extract summary for display (first 50 chars of content)
+        summary = content[:50] + "..." if len(content) > 50 else content
+        output["message"] = f"💾 Captured to learnings: \"{summary}\""
     else:
-        output["warning"] = f"Failed to capture: {result.get('error', 'Unknown error')}"
+        output["warning"] = f"💾 Capture failed: {result.get('error', 'Unknown error')}"
 
     print(json.dumps(output))
 

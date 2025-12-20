@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from git_notes_memory.config import TOKENS_PER_CHAR, get_index_path
+from git_notes_memory.config import TOKENS_PER_CHAR, get_project_index_path
 from git_notes_memory.hooks.config_loader import (
     BudgetMode,
     HookConfig,
@@ -105,7 +105,7 @@ class ContextBuilder:
         if self._index_service is None:
             from git_notes_memory.index import IndexService
 
-            self._index_service = IndexService(get_index_path())
+            self._index_service = IndexService(get_project_index_path())
         return self._index_service
 
     # -------------------------------------------------------------------------
@@ -288,14 +288,30 @@ class ContextBuilder:
               </commands>
             </memory_context>
         """
+        # Calculate total memory count
+        total_memories = context.working_memory.count + context.semantic_context.count
+
         attrs = {
             "project": context.project,
             "timestamp": context.timestamp.isoformat(),
+            "memories_retrieved": str(total_memories),
         }
         if context.spec_id:
             attrs["spec"] = context.spec_id
 
         builder = XMLBuilder("memory_context", attrs)
+
+        # Add visual header when memories are present
+        if total_memories > 0:
+            builder.add_element(
+                "root",
+                "recall_notice",
+                text=(
+                    f"Retrieved {total_memories} memories from prior sessions. "
+                    "Reference these when relevant to the current task."
+                ),
+                priority="high",
+            )
 
         # Build working memory section
         self._add_working_memory_xml(builder, context.working_memory)
