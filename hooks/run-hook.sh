@@ -86,9 +86,9 @@ bootstrap() {
         fi
     fi
 
-    # Install dependencies
+    # Install dependencies into the venv
     log "Installing dependencies..."
-    if ! "$uv_path" pip install -e "${PLUGIN_ROOT}" --quiet 2>&1; then
+    if ! "$uv_path" pip install --python "${VENV_PYTHON}" -e "${PLUGIN_ROOT}" --quiet 2>&1; then
         log "Failed to install dependencies"
         echo '{}'
         exit 0
