@@ -22,7 +22,7 @@ Example usage::
 
 from __future__ import annotations
 
-__version__ = "0.5.4"
+__version__ = "0.6.0"
 
 # Lazy imports to avoid loading embedding model at import time
 __all__ = [
