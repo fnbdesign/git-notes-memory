@@ -9,8 +9,13 @@
   "homepage": "https://github.com/zircote/git-notes-memory-manager#readme",
   "repository": "https://github.com/zircote/git-notes-memory-manager",
   "license": "MIT",
-  "keywords": ["memory", "git-notes", "semantic-search", "context", "recall"],
+  "keywords": [
+    "memory",
+    "git-notes",
+    "semantic-search",
+    "context",
+    "recall"
+  ],
   "commands": "./commands/",
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }
