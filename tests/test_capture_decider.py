@@ -871,9 +871,11 @@ class TestSignalTypeNamespaces:
             (SignalType.DECISION, "decisions"),
             (SignalType.LEARNING, "learnings"),
             (SignalType.BLOCKER, "blockers"),
-            (SignalType.RESOLUTION, "solutions"),
-            (SignalType.PREFERENCE, "preferences"),
-            (SignalType.EXPLICIT, "notes"),
+            (SignalType.RESOLUTION, "progress"),
+            (SignalType.PROGRESS, "progress"),
+            (SignalType.PATTERN, "patterns"),
+            (SignalType.PREFERENCE, "learnings"),
+            (SignalType.EXPLICIT, "learnings"),
         ],
     )
     def test_signal_type_namespaces(

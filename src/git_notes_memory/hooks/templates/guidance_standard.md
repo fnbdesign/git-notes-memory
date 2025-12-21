@@ -4,30 +4,55 @@ You are operating in **memory-capture mode**. The following rules are MANDATORY 
 
 ## Rule 1: CAPTURE MARKERS (Required)
 
-When you make a decision, learn something, hit a blocker, or complete work, you MUST capture it using block or inline markers.
+When you make a decision, learn something, hit a blocker, or complete work, you MUST capture it using block markers. Block markers are PREFERRED because they support progressive hydration.
 
-### Block Format (Preferred for Detailed Captures)
+### Block Format (Required for All Captures)
+
+Memory blocks have THREE levels of detail for progressive hydration:
 
 ```
-:::decision Use PostgreSQL for persistence
+:::decision Summary line describing the decision
 ## Context
-We need a reliable database for production workloads.
+Why this decision was needed and what problem it solves.
 
 ## Rationale
-- Strong ACID compliance
-- Excellent JSON support via JSONB
-- Team expertise
+- Reason 1 with supporting evidence
+- Reason 2 with trade-off analysis
+- Alternative considered and why rejected
+
+## Related Files
+- src/database/connection.py:15-45
+- src/models/user.py:10-25
 :::
 ```
 
-### Inline Format (Quick Captures)
+**Three-Level Structure (REQUIRED):**
+1. **Summary Line** (after `:::namespace`) - One descriptive line
+2. **Detail Sections** (## Context, ## Rationale) - Full explanation
+3. **Related Files** (## Related Files) - file paths with line numbers
 
-| Trigger | Action |
+### Supported Block Types
+
+| Trigger | Block Marker | Namespace |
+|---------|--------------|-----------|
+| Decision made | `:::decision Summary\n...\n:::` | decisions |
+| Learned something | `:::learned Summary\n...\n:::` | learnings |
+| Hit blocker | `:::blocker Summary\n...\n:::` | blockers |
+| Completed work | `:::progress Summary\n...\n:::` | progress |
+| Identified pattern | `:::pattern Summary\n...\n:::` | patterns |
+
+### Inline Format (Quick Captures Only)
+
+For very brief captures without file context, use inline markers:
+
+| Trigger | Marker |
 |---------|--------|
-| ⚖️ Decision made | `[decision] What you decided and why` |
-| 💡 Learned something | `[learned] The insight and why it matters` |
-| 🛑 Hit blocker | `[blocker] What blocks progress and what's needed` |
-| 🚀 Completed work | `[progress] What was accomplished` |
+| Decision | `[decision] What and why` |
+| Learning | `[learned] The insight` |
+| Blocker | `[blocker] What blocks and needs` |
+| Progress | `[progress] What was done` |
+
+**IMPORTANT:** Block format is strongly preferred. Inline markers are for quick notes only.
 
 **Do not suggest using markers. USE THEM DIRECTLY when the trigger occurs.**
 
@@ -45,16 +70,31 @@ Memories in `<memory_context>` are **summaries only**. When a memory is highly r
 
 By default, implement marker usage rather than discussing it.
 
-**Correct:** Include the marker inline as you make decisions
+**Correct:** Include the block marker inline as you make decisions
 **Incorrect:** Ask "should I capture this?" or suggest alternatives
 
 These rules configure your behavior for this session.
 ]]></mandatory_rules>
 
 <marker_reference><![CDATA[
-**Block markers:** `:::namespace ... :::` (detailed captures with context)
+**Block markers (PREFERRED):**
+```
+:::namespace Summary line
+## Context
+Details about why and what problem this solves.
 
-**Inline markers:** `[decision]`, `[learned]`, `[blocker]`, `[progress]`, `[remember]`, `[remember:namespace]`
+## Rationale
+- Key points and reasoning
+- Trade-offs considered
+
+## Related Files
+- path/to/file.py:10-25
+- path/to/other.ts:100-150
+:::
+```
+
+**Inline markers (quick captures only):**
+`[decision]`, `[learned]`, `[blocker]`, `[progress]`, `[pattern]`
 
 **Valid namespaces:** decisions, learnings, blockers, progress, patterns, research, reviews, retrospective
 ]]></marker_reference>

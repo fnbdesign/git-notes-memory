@@ -245,9 +245,11 @@ class TestSignalType:
         assert SignalType.DECISION.suggested_namespace == "decisions"
         assert SignalType.LEARNING.suggested_namespace == "learnings"
         assert SignalType.BLOCKER.suggested_namespace == "blockers"
-        assert SignalType.RESOLUTION.suggested_namespace == "solutions"
-        assert SignalType.PREFERENCE.suggested_namespace == "preferences"
-        assert SignalType.EXPLICIT.suggested_namespace == "notes"
+        assert SignalType.RESOLUTION.suggested_namespace == "progress"
+        assert SignalType.PROGRESS.suggested_namespace == "progress"
+        assert SignalType.PATTERN.suggested_namespace == "patterns"
+        assert SignalType.PREFERENCE.suggested_namespace == "learnings"
+        assert SignalType.EXPLICIT.suggested_namespace == "learnings"
 
 
 # =============================================================================

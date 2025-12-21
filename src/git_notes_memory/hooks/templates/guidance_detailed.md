@@ -6,42 +6,62 @@ You are operating in **memory-capture mode**. The following rules are MANDATORY 
 
 ## Rule 1: CAPTURE MARKERS (Required — No Exceptions)
 
-When ANY of these triggers occur, you MUST immediately capture using the appropriate format. Do not ask permission. Do not suggest using markers. USE THEM DIRECTLY.
+When ANY of these triggers occur, you MUST immediately capture using block format. Do not ask permission. Do not suggest using markers. USE THEM DIRECTLY.
 
-### Block Format (Preferred for Detailed Captures)
+### Block Format (REQUIRED for All Captures)
 
-Use markdown block syntax for rich, structured captures:
+Memory blocks MUST have THREE levels of detail for progressive hydration:
 
 ```
-:::decision Use PostgreSQL for persistence
+:::decision Summary line describing the decision
 ## Context
-We need a reliable database for production workloads.
+Why this decision was needed and what problem it solves.
+Background information and constraints.
 
 ## Rationale
-- Strong ACID compliance
-- Excellent JSON support via JSONB
-- Team expertise
+- Reason 1 with supporting evidence
+- Reason 2 with trade-off analysis
+- Alternatives considered and why rejected
 
-## Alternatives Considered
-- MySQL: Less JSON support
-- MongoDB: Overkill for structured data
+## Related Files
+- src/database/connection.py:15-45
+- src/models/user.py:10-25
+- tests/test_db.py:100-150
 :::
 ```
 
-### Inline Format (Quick Captures)
+**Three-Level Structure (MANDATORY):**
+1. **Summary Line** (after `:::namespace`) — One descriptive line, becomes memory title
+2. **Detail Sections** (## Context, ## Rationale) — Full explanation for FULL hydration
+3. **Related Files** (## Related Files) — File paths with line numbers for FILES hydration
 
-| Trigger | REQUIRED Action | Example |
-|---------|-----------------|---------|
-| Making ANY decision | ⚖️ `[decision] What + Why` | `[decision] Using PostgreSQL: better JSON support, team expertise, ACID compliance` |
-| Learning something new | 💡 `[learned] Insight + Application` | `[learned] pytest module-scoped fixtures share state across tests—use function scope for mutable fixtures` |
-| Hitting a blocker | 🛑 `[blocker] Issue + Needed` | `[blocker] Schema migration blocked by circular FK dependencies between users and organizations tables` |
-| Completing significant work | 🚀 `[progress] Accomplishment` | `[progress] Implemented JWT authentication with refresh token rotation` |
+### Supported Block Types
+
+| Trigger | Block Marker | Namespace | When to Use |
+|---------|--------------|-----------|-------------|
+| Decision made | `:::decision` | decisions | Architecture, technology, approach choices |
+| Learned something | `:::learned` | learnings | New insights, discoveries, TILs |
+| Hit blocker | `:::blocker` | blockers | Issues blocking progress, need for help |
+| Completed work | `:::progress` | progress | Finished features, milestones, fixes |
+| Identified pattern | `:::pattern` | patterns | Reusable approaches, idioms, best practices |
+
+### Inline Format (Quick Captures Only)
+
+For VERY brief notes without file context, use inline markers. Block format is strongly preferred.
+
+| Trigger | Marker | Example |
+|---------|--------|---------|
+| Decision | `[decision]` | `[decision] Using PostgreSQL for JSONB support` |
+| Learning | `[learned]` | `[learned] pytest fixtures share state with module scope` |
+| Blocker | `[blocker]` | `[blocker] Circular FK dependency between tables` |
+| Progress | `[progress]` | `[progress] JWT auth with refresh rotation implemented` |
 
 ### Enforcement
 
-- **DO:** Include markers as you work, not after the fact
+- **DO:** Include block markers as you work, not after the fact
+- **DO:** Always include Related Files section with line numbers
 - **DON'T:** Ask "should I capture this?" or wait for permission
-- **DON'T:** Suggest alternatives to the marker syntax
+- **DON'T:** Use inline markers when block format is appropriate
 
 ---
 
@@ -96,6 +116,11 @@ Need authentication that works across multiple servers without session sharing.
 - Stateless: No server-side session storage needed
 - Scalable: Works with load balancing out of the box
 - Team expertise: Backend team has JWT experience
+
+## Related Files
+- src/auth/jwt_handler.py:1-50
+- src/middleware/auth.py:25-80
+- tests/test_auth.py:10-100
 :::
 ```
 
@@ -108,35 +133,40 @@ These rules supersede default helpful suggestions. They configure your behavior 
 ]]></mandatory_rules>
 
 <marker_reference><![CDATA[
-**Block markers (preferred for detailed captures):**
+**Block markers (REQUIRED for detailed captures):**
 
 ```
-:::namespace Title or summary
+:::namespace Summary line
 ## Context
-Background information...
+Background information and why this matters.
 
-## Details
-Specifics...
+## Rationale
+- Key reasoning points
+- Trade-offs considered
+
+## Related Files
+- path/to/file.py:10-25
+- path/to/other.ts:100-150
 :::
 ```
 
-**Inline markers (quick captures):**
+**Inline markers (quick captures only):**
 
-- ⚖️ `[decision] text` — decisions namespace
-- 💡 `[learned] text` — learnings namespace
-- 🛑 `[blocker] text` — blockers namespace
-- 🚀 `[progress] text` — progress namespace
-- 📝 `[remember] text` — learnings namespace (default)
-- 📝 `[remember:namespace] text` — specified namespace
+- `[decision] text` — decisions namespace
+- `[learned] text` — learnings namespace
+- `[blocker] text` — blockers namespace
+- `[progress] text` — progress namespace
+- `[pattern] text` — patterns namespace
+- `[remember] text` — learnings namespace (default)
+- `[remember:namespace] text` — specified namespace
 
 **Additional namespaces:**
 
-- 🔍 `[research] text` — research namespace
-- 🧩 `[pattern] text` — patterns namespace
-- 👁️ `[review] text` — reviews namespace
-- 🔄 `[retro] text` — retrospective namespace
-- 🌱 `[inception] text` — inception namespace
-- 💬 `[requirement] text` — elicitation namespace
+- `[research] text` — research namespace
+- `[review] text` — reviews namespace
+- `[retro] text` — retrospective namespace
+- `[inception] text` — inception namespace
+- `[requirement] text` — elicitation namespace
 
 **Memory expansion commands:**
 

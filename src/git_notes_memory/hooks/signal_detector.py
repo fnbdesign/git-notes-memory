@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 # Higher base_confidence indicates a stronger signal
 SIGNAL_PATTERNS: dict[SignalType, list[tuple[str, float]]] = {
     SignalType.DECISION: [
+        # Inline markers
+        (r"\[decision\]", 0.98),
+        (r"\[d\]", 0.95),  # Shorthand
         # Strong decision signals (high confidence)
         (r"(?i)\b(I|we)\s+(decided|chose|selected|picked|opted)\s+(to|for|on)\b", 0.90),
         (r"(?i)\bthe decision (is|was) (to|that)\b", 0.88),
@@ -46,6 +49,9 @@ SIGNAL_PATTERNS: dict[SignalType, list[tuple[str, float]]] = {
         (r"(?i)\bmade the call to\b", 0.80),
     ],
     SignalType.LEARNING: [
+        # Inline markers
+        (r"\[learn(?:ed|ing)?\]", 0.98),
+        (r"\[l\]", 0.95),  # Shorthand
         # Strong learning signals
         (
             r"(?i)\b(I|we)\s+(learned|realized|discovered|found out)\s+(that|about)?\b",
@@ -61,6 +67,9 @@ SIGNAL_PATTERNS: dict[SignalType, list[tuple[str, float]]] = {
         (r"(?i)\baha moment\b", 0.88),
     ],
     SignalType.BLOCKER: [
+        # Inline markers
+        (r"\[blocker\]", 0.98),
+        (r"\[b\]", 0.95),  # Shorthand
         # Strong blocker signals
         (r"(?i)\bblocked (by|on)\b", 0.92),
         (r"(?i)\bstuck (on|with)\b", 0.88),
@@ -84,6 +93,29 @@ SIGNAL_PATTERNS: dict[SignalType, list[tuple[str, float]]] = {
         (r"(?i)\bthe (fix|solution) (was|is)\b", 0.85),
         (r"(?i)\bfinally got\b", 0.75),
     ],
+    SignalType.PROGRESS: [
+        # Inline markers
+        (r"\[progress\]", 0.98),
+        (r"\[p\]", 0.95),  # Shorthand
+        # Strong progress signals
+        (r"(?i)\b(finished|completed|done with)\b", 0.90),
+        (r"(?i)\bimplemented\b", 0.88),
+        (r"(?i)\bmerged (the|this|that)\b", 0.85),
+        (r"(?i)\bshipped\b", 0.88),
+        # Moderate progress signals
+        (r"(?i)\bmade progress on\b", 0.82),
+        (r"(?i)\bwrapped up\b", 0.80),
+    ],
+    SignalType.PATTERN: [
+        # Inline markers
+        (r"\[pattern\]", 0.98),
+        # Strong pattern signals
+        (r"(?i)\bpattern[:\s]", 0.90),
+        (r"(?i)\bthis (approach|technique|method) (works|is useful)\b", 0.85),
+        (r"(?i)\breusable\b", 0.82),
+        (r"(?i)\bbest practice\b", 0.88),
+        (r"(?i)\bidiomatic\b", 0.85),
+    ],
     SignalType.PREFERENCE: [
         # Strong preference signals
         (r"(?i)\bI (always )?(prefer|like) to\b", 0.88),
@@ -105,6 +137,29 @@ SIGNAL_PATTERNS: dict[SignalType, list[tuple[str, float]]] = {
         (r"(?i)\bimportant[:\s]", 0.75),
     ],
 }
+
+# Block patterns extract FULL content between ::: markers
+# Format: (namespace_keyword, signal_type)
+# These are processed separately to capture the entire block as content
+BLOCK_MARKERS: dict[str, SignalType] = {
+    "decision": SignalType.DECISION,
+    "learned": SignalType.LEARNING,
+    "learning": SignalType.LEARNING,
+    "blocker": SignalType.BLOCKER,
+    "progress": SignalType.PROGRESS,
+    "pattern": SignalType.PATTERN,
+    "remember": SignalType.EXPLICIT,
+}
+
+# Regex to capture full ::: blocks with document boundaries
+# Captures: full block including markers, namespace, title line, and body
+BLOCK_PATTERN = re.compile(
+    r":::(decision|learned|learning|blocker|progress|pattern|remember)"
+    r"(?:\s+([^\n]+))?"  # Optional title on same line
+    r"(?:\n(.*?))?"  # Optional body content
+    r":::$",
+    re.MULTILINE | re.DOTALL,
+)
 
 
 class SignalDetector:
@@ -196,6 +251,9 @@ class SignalDetector:
         Overlapping matches are de-duplicated, keeping the highest
         confidence match.
 
+        Block markers (:::namespace...:::) are detected first and capture
+        the FULL block content for progressive hydration.
+
         Args:
             text: The text to scan for signals.
 
@@ -213,10 +271,50 @@ class SignalDetector:
             return []
 
         signals: list[CaptureSignal] = []
+        block_positions: set[tuple[int, int]] = set()
 
+        # FIRST: Detect full ::: block markers with complete content
+        for match in BLOCK_PATTERN.finditer(text):
+            namespace_keyword = match.group(1).lower()
+            title = (match.group(2) or "").strip()
+            body = (match.group(3) or "").strip()
+
+            # Look up the signal type for this namespace keyword
+            signal_type = BLOCK_MARKERS.get(namespace_keyword)
+            if signal_type is None:
+                continue
+
+            # Build the full block content (title + body)
+            full_content = title
+            if body:
+                full_content = f"{title}\n{body}" if title else body
+
+            # The match is the full block, context is the same (no truncation)
+            full_block = match.group(0)
+
+            signal = CaptureSignal(
+                type=signal_type,
+                match=full_block,  # Full block including markers
+                confidence=0.99,  # Highest confidence for explicit blocks
+                context=full_content,  # Just the content without markers
+                suggested_namespace=signal_type.suggested_namespace,
+                position=match.start(),
+            )
+            signals.append(signal)
+            block_positions.add((match.start(), match.end()))
+
+        logger.debug("Detected %d block markers in text", len(block_positions))
+
+        # SECOND: Detect inline patterns (skip positions covered by blocks)
         for signal_type, patterns in self._compiled_patterns.items():
             for pattern, base_confidence in patterns:
                 for match in pattern.finditer(text):
+                    # Skip if this position is inside a block we already captured
+                    pos = match.start()
+                    in_block = any(start <= pos < end for start, end in block_positions)
+                    if in_block:
+                        continue
+
                     # Extract context around the match
                     context = self._extract_context(text, match.start(), match.end())
 

@@ -5,7 +5,7 @@ session transcripts to detect potentially uncaptured memorable content
 at session end.
 
 The analyzer:
-1. Parses transcript from file path
+1. Parses transcript from file path (supports JSONL and plain text formats)
 2. Applies signal detection to identify memorable content
 3. Filters out already-captured memories via novelty checking
 4. Ranks remaining signals by importance
@@ -13,13 +13,14 @@ The analyzer:
 Example::
 
     analyzer = SessionAnalyzer()
-    uncaptured = analyzer.analyze("/path/to/transcript.md")
+    uncaptured = analyzer.analyze("/path/to/transcript.jsonl")
     for signal in uncaptured:
         print(f"{signal.type.value}: {signal.match[:50]}...")
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -144,6 +145,10 @@ class SessionAnalyzer:
     def parse_transcript(self, transcript_path: str | Path) -> TranscriptContent | None:
         """Parse a transcript file into structured content.
 
+        Supports both JSONL format (Claude Code transcripts) and plain text format.
+        JSONL format: Each line is a JSON object with 'message', 'type', 'userType' fields.
+        Plain text format: Messages prefixed with 'Human:', 'User:', or 'Assistant:'.
+
         Args:
             transcript_path: Path to the transcript file.
 
@@ -172,11 +177,101 @@ class SessionAnalyzer:
             logger.warning("Failed to read transcript: %s", e)
             return None
 
-        # Extract user messages
+        # Detect format: JSONL if first non-empty line starts with '{'
+        lines = raw_content.strip().split("\n")
+        first_line = lines[0].strip() if lines else ""
+        is_jsonl = first_line.startswith("{")
+
+        if is_jsonl:
+            return self._parse_jsonl_transcript(lines, raw_content)
+        else:
+            return self._parse_plain_text_transcript(raw_content)
+
+    def _parse_jsonl_transcript(
+        self, lines: list[str], raw_content: str
+    ) -> TranscriptContent:
+        """Parse JSONL format transcript (Claude Code format).
+
+        Args:
+            lines: Lines from the transcript file.
+            raw_content: Full raw content string.
+
+        Returns:
+            TranscriptContent with extracted messages.
+        """
+        user_messages: list[str] = []
+        assistant_messages: list[str] = []
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            # Skip non-message entries (summaries, snapshots, etc.)
+            entry_type = entry.get("type", "")
+            if entry_type in ("summary", "snapshot", "isSnapshotUpdate"):
+                continue
+
+            # Extract message content
+            message = entry.get("message", "")
+            if not message:
+                continue
+
+            # Handle message as string or structured content
+            if isinstance(message, dict):
+                # Message might be structured with 'content' field
+                message = message.get("content", str(message))
+            message = str(message).strip()
+
+            if not message:
+                continue
+
+            # Classify by userType field
+            user_type = entry.get("userType", "").lower()
+            if user_type in ("human", "user"):
+                user_messages.append(message)
+            elif user_type == "assistant":
+                assistant_messages.append(message)
+            else:
+                # Default: treat as assistant if has message but unknown userType
+                # This catches tool responses and other content
+                if entry_type == "assistant" or "tool" in entry_type.lower():
+                    assistant_messages.append(message)
+
+        total_turns = max(len(user_messages), len(assistant_messages))
+
+        logger.debug(
+            "Parsed JSONL transcript: %d user, %d assistant messages",
+            len(user_messages),
+            len(assistant_messages),
+        )
+
+        return TranscriptContent(
+            user_messages=tuple(user_messages),
+            assistant_messages=tuple(assistant_messages),
+            raw_content=raw_content,
+            total_turns=total_turns,
+        )
+
+    def _parse_plain_text_transcript(self, raw_content: str) -> TranscriptContent:
+        """Parse plain text format transcript.
+
+        Args:
+            raw_content: Full raw content string.
+
+        Returns:
+            TranscriptContent with extracted messages.
+        """
+        # Extract user messages using regex
         user_matches = self.USER_PATTERN.findall(raw_content)
         user_messages = tuple(msg.strip() for msg in user_matches if msg.strip())
 
-        # Extract assistant messages
+        # Extract assistant messages using regex
         assistant_matches = self.ASSISTANT_PATTERN.findall(raw_content)
         assistant_messages = tuple(
             msg.strip() for msg in assistant_matches if msg.strip()

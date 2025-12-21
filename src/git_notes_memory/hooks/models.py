@@ -49,6 +49,8 @@ class SignalType(Enum):
         LEARNING: User learned something ("I learned", "TIL", "turns out")
         BLOCKER: User encountered a blocker ("blocked by", "stuck on")
         RESOLUTION: User resolved an issue ("fixed", "solved", "workaround")
+        PROGRESS: User completed work ("finished", "completed", "done with")
+        PATTERN: User identified a reusable pattern ("pattern", "approach")
         PREFERENCE: User expressed a preference ("I prefer", "I like")
         EXPLICIT: User explicitly requested capture ("remember this", "save this")
     """
@@ -57,6 +59,8 @@ class SignalType(Enum):
     LEARNING = "learning"
     BLOCKER = "blocker"
     RESOLUTION = "resolution"
+    PROGRESS = "progress"
+    PATTERN = "pattern"
     PREFERENCE = "preference"
     EXPLICIT = "explicit"
 
@@ -71,9 +75,11 @@ class SignalType(Enum):
             SignalType.DECISION: "decisions",
             SignalType.LEARNING: "learnings",
             SignalType.BLOCKER: "blockers",
-            SignalType.RESOLUTION: "solutions",
-            SignalType.PREFERENCE: "preferences",
-            SignalType.EXPLICIT: "notes",
+            SignalType.RESOLUTION: "progress",  # Resolutions also go to progress
+            SignalType.PROGRESS: "progress",
+            SignalType.PATTERN: "patterns",
+            SignalType.PREFERENCE: "learnings",  # Preferences are insights
+            SignalType.EXPLICIT: "learnings",  # Default for explicit capture
         }
         return namespace_map[self]
 

@@ -120,6 +120,8 @@ class TestSignalPatternsConstant:
             SignalType.LEARNING,
             SignalType.BLOCKER,
             SignalType.RESOLUTION,
+            SignalType.PROGRESS,
+            SignalType.PATTERN,
             SignalType.PREFERENCE,
             SignalType.EXPLICIT,
         }
@@ -310,12 +312,12 @@ class TestResolutionSignalDetection:
         assert len(resolution_signals) >= 1, f"No RESOLUTION signal in: {text}"
 
     def test_resolution_suggested_namespace(self, detector: SignalDetector) -> None:
-        """Test RESOLUTION signals suggest 'solutions' namespace."""
+        """Test RESOLUTION signals suggest 'progress' namespace."""
         text = "Fixed the database connection issue"
         signals = detector.detect(text)
         resolution_signals = [s for s in signals if s.type == SignalType.RESOLUTION]
         assert len(resolution_signals) >= 1
-        assert resolution_signals[0].suggested_namespace == "solutions"
+        assert resolution_signals[0].suggested_namespace == "progress"
 
 
 # =============================================================================
@@ -351,12 +353,12 @@ class TestPreferenceSignalDetection:
         assert len(preference_signals) >= 1, f"No PREFERENCE signal in: {text}"
 
     def test_preference_suggested_namespace(self, detector: SignalDetector) -> None:
-        """Test PREFERENCE signals suggest 'preferences' namespace."""
+        """Test PREFERENCE signals suggest 'learnings' namespace."""
         text = "My preference is for readable code"
         signals = detector.detect(text)
         preference_signals = [s for s in signals if s.type == SignalType.PREFERENCE]
         assert len(preference_signals) >= 1
-        assert preference_signals[0].suggested_namespace == "preferences"
+        assert preference_signals[0].suggested_namespace == "learnings"
 
 
 # =============================================================================
@@ -402,12 +404,12 @@ class TestExplicitSignalDetection:
         assert explicit_signals[0].confidence >= 0.90
 
     def test_explicit_suggested_namespace(self, detector: SignalDetector) -> None:
-        """Test EXPLICIT signals suggest 'notes' namespace."""
+        """Test EXPLICIT signals suggest 'learnings' namespace."""
         text = "Remember this important configuration"
         signals = detector.detect(text)
         explicit_signals = [s for s in signals if s.type == SignalType.EXPLICIT]
         assert len(explicit_signals) >= 1
-        assert explicit_signals[0].suggested_namespace == "notes"
+        assert explicit_signals[0].suggested_namespace == "learnings"
 
 
 # =============================================================================
@@ -706,9 +708,11 @@ class TestClassifyMethod:
             SignalType.DECISION: "decisions",
             SignalType.LEARNING: "learnings",
             SignalType.BLOCKER: "blockers",
-            SignalType.RESOLUTION: "solutions",
-            SignalType.PREFERENCE: "preferences",
-            SignalType.EXPLICIT: "notes",
+            SignalType.RESOLUTION: "progress",
+            SignalType.PROGRESS: "progress",
+            SignalType.PATTERN: "patterns",
+            SignalType.PREFERENCE: "learnings",
+            SignalType.EXPLICIT: "learnings",
         }
 
         for signal_type, expected_namespace in expected_namespaces.items():
