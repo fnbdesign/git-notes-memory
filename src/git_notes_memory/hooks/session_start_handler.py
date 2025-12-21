@@ -172,7 +172,9 @@ def main() -> None:
             if git_ops.ensure_sync_configured():
                 logger.debug("Git notes sync configured for repository")
             else:
-                logger.debug("Git notes sync not configured (no remote or not a git repo)")
+                logger.debug(
+                    "Git notes sync not configured (no remote or not a git repo)"
+                )
         except Exception as e:
             logger.debug("Could not configure git notes sync: %s", e)
 
