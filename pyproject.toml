@@ -23,23 +23,23 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "pyyaml>=6.0",
-    "python-dotenv>=1.0.0",
-    "sentence-transformers>=2.2.0",
-    "sqlite-vec>=0.1.1",
+    "pyyaml>=6.0.2",
+    "python-dotenv>=1.0.1",
+    "sentence-transformers>=3.0.0",
+    "sqlite-vec>=0.1.6",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.0",
+    "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.14.0",
-    "mypy>=1.18.0",
+    "mypy>=1.19.0",
     "bandit>=1.8.0",
     "pip-audit>=2.9.0",
-    "build>=1.0.0",
-    "types-PyYAML>=6.0.0",
+    "build>=1.2.0",
+    "types-PyYAML>=6.0.12",
     "bump-my-version>=1.1.0",
 ]
 
@@ -55,15 +55,15 @@ git-notes-memory = "git_notes_memory.main:main"
 # UV/Astral dependency groups (modern tooling)
 [dependency-groups]
 dev = [
-    "pytest>=9.0.0",
+    "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.14.0",
-    "mypy>=1.18.0",
+    "mypy>=1.19.0",
     "bandit>=1.8.0",
     "pip-audit>=2.9.0",
-    "build>=1.0.0",
-    "types-PyYAML>=6.0.0",
+    "build>=1.2.0",
+    "types-PyYAML>=6.0.12",
     "bump-my-version>=1.1.0",
 ]
 
