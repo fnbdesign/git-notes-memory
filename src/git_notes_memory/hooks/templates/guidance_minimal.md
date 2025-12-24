@@ -1,19 +1,35 @@
 <session_behavior_protocol level="minimal">
 <mandatory_rules><![CDATA[
-**REQUIRED:** Use unicode block markers for captures:
+# MANDATORY: Memory Block Production
 
+**RULE: Produce `▶ namespace ───` blocks after EVERY completed task. This is not optional.**
+
+**Guidance:** Capture meaningful work, decisions, and learnings. Skip routine commands and confirmations.
+
+**Block format:**
 ```
-▶ decision ─────────────────────────────────────
-Use PostgreSQL for JSONB support
+▶ progress ─────────────────────────────────────
+Summary of what was done
+
+## Changes Made
+- Change 1
+- Change 2
+
+## Related Files
+- path/to/file.py:10-25
 ────────────────────────────────────────────────
 ```
 
 **Block types:** `▶ decision`, `▶ learned`, `▶ blocker`, `▶ progress`, `▶ pattern`
 
-**Quick markers (brief notes only):** `[decision]`, `[learned]`, `[blocker]`, `[progress]`
+**Quick markers (RARE):** `[decision]`, `[learned]`, `[blocker]`, `[progress]`, `[pattern]`
 
-**REQUIRED:** Memories in `<memory_context>` are summaries. Use `/memory:recall <id>` to expand when relevant.
+**Self-check before EACH response:**
+- Did I complete a task? → WRITE `▶ progress ───`
+- Did I make a decision? → WRITE `▶ decision ───`
 
-Valid namespaces: decisions, learnings, blockers, progress, patterns, research, reviews, retrospective
+**DO NOT skip blocks. DO NOT ask permission. Just include them.**
+
+**Memory recall:** Use `/memory:recall <id>` to expand memories from `<memory_context>`.
 ]]></mandatory_rules>
 </session_behavior_protocol>
