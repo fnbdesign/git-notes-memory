@@ -17,6 +17,7 @@ from __future__ import annotations
 import fcntl
 import logging
 import os
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
@@ -55,43 +56,63 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _acquire_lock(lock_path: Path, _timeout: float = 10.0) -> Iterator[None]:
+def _acquire_lock(lock_path: Path, timeout: float = 10.0) -> Iterator[None]:
     """Acquire an exclusive file lock for capture operations.
 
     Uses fcntl advisory locking to prevent concurrent corruption. The lock
     is automatically released when the context manager exits.
 
+    Uses non-blocking lock with retry loop to implement timeout, preventing
+    indefinite blocking if another process holds the lock.
+
     Args:
         lock_path: Path to the lock file.
-        _timeout: Maximum time to wait for lock (seconds). Currently not
-            implemented - will block indefinitely if lock is held.
+        timeout: Maximum time to wait for lock (seconds). Default 10.0.
 
     Yields:
         None when lock is acquired.
 
     Raises:
-        CaptureError: If the lock cannot be acquired.
+        CaptureError: If the lock cannot be acquired within the timeout.
     """
     # Ensure parent directory exists
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     fd = None
     try:
-        # Open or create lock file
-        fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o644)
+        # Open or create lock file with restrictive permissions (MED-001)
+        # O_NOFOLLOW prevents symlink attacks (HIGH-005: TOCTOU mitigation)
+        fd = os.open(
+            str(lock_path),
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+            0o600,
+        )
 
-        # Acquire exclusive lock (blocking)
-        # Note: timeout is not implemented with fcntl, it blocks indefinitely
-        # A more sophisticated implementation could use LOCK_NB with retries
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-            logger.debug("Acquired capture lock: %s", lock_path)
-            yield
-        except OSError as e:
-            raise CaptureError(
-                f"Failed to acquire capture lock: {e}",
-                "Another capture may be in progress, wait and retry",
-            ) from e
+        # Acquire exclusive lock with timeout using non-blocking retry loop
+        # CRIT-001: Prevents indefinite blocking if lock is held
+        deadline = time.monotonic() + timeout
+        retry_interval = 0.1  # 100ms between retries
+
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                logger.debug("Acquired capture lock: %s", lock_path)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise CaptureError(
+                        f"Lock acquisition timed out after {timeout}s",
+                        "Another capture may be in progress, wait and retry",
+                    ) from None
+                time.sleep(retry_interval)
+            except OSError as e:
+                raise CaptureError(
+                    f"Failed to acquire capture lock: {e}",
+                    "Another capture may be in progress, wait and retry",
+                ) from e
+
+        yield
+
     finally:
         if fd is not None:
             try:

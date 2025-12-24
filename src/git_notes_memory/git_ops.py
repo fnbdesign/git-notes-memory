@@ -118,6 +118,7 @@ class GitOps:
         *,
         check: bool = True,
         capture_output: bool = True,
+        timeout: float = 30.0,
     ) -> subprocess.CompletedProcess[str]:
         """Run a git command in the repository.
 
@@ -125,12 +126,14 @@ class GitOps:
             args: Git command arguments (without 'git' prefix).
             check: Raise on non-zero exit.
             capture_output: Capture stdout/stderr.
+            timeout: Maximum time to wait for command (seconds). Default 30.0.
+                HIGH-001: Prevents indefinite hangs on slow/unresponsive systems.
 
         Returns:
             CompletedProcess result.
 
         Raises:
-            StorageError: If command fails and check=True.
+            StorageError: If command fails and check=True, or if timeout is exceeded.
         """
         cmd = ["git", "-C", str(self.repo_path), *args]
 
@@ -140,6 +143,7 @@ class GitOps:
                 check=check,
                 capture_output=capture_output,
                 text=True,
+                timeout=timeout,
             )
         except subprocess.CalledProcessError as e:
             # Parse common git errors for better messages
@@ -190,6 +194,12 @@ class GitOps:
             raise StorageError(
                 f"Git command failed: {' '.join(sanitized_args)}\n{stderr}",
                 "Check git status and try again",
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            # HIGH-001: Handle timeout to provide clear error message
+            raise StorageError(
+                f"Git command timed out after {timeout}s",
+                "Git operation is taking too long; check for network issues or large repository",
             ) from e
 
     def _note_ref(self, namespace: str) -> str:

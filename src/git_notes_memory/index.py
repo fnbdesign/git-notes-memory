@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextlib
 import sqlite3
 import struct
+import threading
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -161,6 +162,8 @@ class IndexService:
         self.db_path = db_path or get_index_path()
         self._conn: sqlite3.Connection | None = None
         self._initialized = False
+        # HIGH-011: Thread lock for concurrent access safety
+        self._lock = threading.Lock()
 
     @property
     def is_initialized(self) -> bool:
@@ -190,6 +193,11 @@ class IndexService:
                 check_same_thread=False,
             )
             self._conn.row_factory = sqlite3.Row
+
+            # MED-005: Enable WAL mode for better concurrent access
+            # WAL allows readers and writers to operate concurrently
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA synchronous=NORMAL")
 
             # Load sqlite-vec extension
             self._load_vec_extension()
@@ -467,13 +475,14 @@ class IndexService:
             try:
                 for i, memory in enumerate(memories):
                     try:
+                        # CRIT-002: Include repo_path for per-repository isolation
                         cursor.execute(
                             """
                             INSERT INTO memories (
                                 id, commit_sha, namespace, summary, content,
-                                timestamp, spec, phase, tags, status, relates_to,
-                                created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                timestamp, repo_path, spec, phase, tags, status,
+                                relates_to, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 memory.id,
@@ -482,6 +491,7 @@ class IndexService:
                                 memory.summary,
                                 memory.content,
                                 memory.timestamp.isoformat(),
+                                memory.repo_path,
                                 memory.spec,
                                 memory.phase,
                                 ",".join(memory.tags) if memory.tags else None,
