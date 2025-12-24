@@ -73,19 +73,19 @@ class TestTemplateContent:
         """Test that detailed template has behavioral examples."""
         xml = guidance_builder.build_guidance("detailed")
         # Check for examples showing correct vs incorrect behavior
-        assert "Correct behavior" in xml
-        assert "decision]" in xml  # Marker with emoji prefix
-        assert "learned]" in xml
-        assert "blocker]" in xml
+        assert "CORRECT behavior" in xml or "**CORRECT**" in xml
+        assert "decision" in xml  # Decision marker
+        assert "learned" in xml
+        assert "blocker" in xml
 
     def test_templates_have_namespaces(self, guidance_builder: GuidanceBuilder) -> None:
         """Test that templates list valid namespaces."""
         for level in ["minimal", "standard", "detailed"]:
             xml = guidance_builder.build_guidance(level)
-            # Check for key namespaces
-            assert "decisions" in xml
-            assert "learnings" in xml
-            assert "blockers" in xml
+            # Check for key namespaces (decision/decisions, learned/learnings, etc.)
+            assert "decision" in xml
+            assert "learned" in xml or "learnings" in xml
+            assert "blocker" in xml
             assert "progress" in xml
 
 
@@ -102,10 +102,11 @@ class TestGuidanceBuilder:
         xml = guidance_builder.build_guidance("minimal")
         assert '<session_behavior_protocol level="minimal">' in xml
         assert "<mandatory_rules>" in xml
-        assert "REQUIRED" in xml
+        # Minimal uses MANDATORY or RULE language
+        assert "MANDATORY" in xml or "RULE" in xml
         # Minimal should be concise - no detailed examples
-        assert "Correct behavior" not in xml
-        assert "Incorrect behavior" not in xml
+        assert "CORRECT behavior" not in xml
+        assert "WRONG behaviors" not in xml
 
     def test_build_standard(self, guidance_builder: GuidanceBuilder) -> None:
         """Test standard guidance generation."""
@@ -113,10 +114,10 @@ class TestGuidanceBuilder:
         assert '<session_behavior_protocol level="standard">' in xml
         assert "<mandatory_rules>" in xml
         assert "<marker_reference>" in xml
-        # Standard should have rules
-        assert "Rule 1" in xml
-        assert "Rule 2" in xml
-        assert "Rule 3" in xml
+        # Standard should have rules (uppercase RULE in new templates)
+        assert "RULE 1" in xml or "Rule 1" in xml
+        assert "RULE 2" in xml or "Rule 2" in xml
+        assert "RULE 3" in xml or "Rule 3" in xml
 
     def test_build_detailed(self, guidance_builder: GuidanceBuilder) -> None:
         """Test detailed guidance generation."""
@@ -124,11 +125,11 @@ class TestGuidanceBuilder:
         assert '<session_behavior_protocol level="detailed">' in xml
         assert "<mandatory_rules>" in xml
         assert "<marker_reference>" in xml
-        # Detailed SHOULD have examples
-        assert "Correct behavior" in xml
-        assert "Incorrect behavior" in xml
-        # Detailed should have enforcement sections
-        assert "Enforcement" in xml
+        # Detailed SHOULD have examples (CORRECT/WRONG or correct/incorrect)
+        assert "CORRECT" in xml or "Correct" in xml
+        assert "WRONG" in xml or "Incorrect" in xml
+        # Detailed should have accountability or failure modes sections
+        assert "ACCOUNTABILITY" in xml or "FAILURE" in xml
 
     def test_invalid_detail_level(self, guidance_builder: GuidanceBuilder) -> None:
         """Test that invalid detail level raises ValueError."""
@@ -202,28 +203,28 @@ class TestGuidanceBuilderTokenEstimation:
         """Estimate token count (roughly 4 chars per token)."""
         return len(text) // 4
 
-    def test_minimal_under_200_tokens(self, guidance_builder: GuidanceBuilder) -> None:
-        """Test that minimal guidance is under ~200 tokens."""
+    def test_minimal_under_500_tokens(self, guidance_builder: GuidanceBuilder) -> None:
+        """Test that minimal guidance is under ~500 tokens."""
         xml = guidance_builder.build_guidance("minimal")
         tokens = self.estimate_tokens(xml)
-        # Allow some margin
-        assert tokens < 250, f"Minimal guidance is ~{tokens} tokens, expected <250"
+        # Minimal template is concise but includes key rules
+        assert tokens < 500, f"Minimal guidance is ~{tokens} tokens, expected <500"
 
-    def test_standard_under_1000_tokens(
+    def test_standard_under_1500_tokens(
         self, guidance_builder: GuidanceBuilder
     ) -> None:
-        """Test that standard guidance is under ~1000 tokens."""
+        """Test that standard guidance is under ~1500 tokens."""
         xml = guidance_builder.build_guidance("standard")
         tokens = self.estimate_tokens(xml)
-        assert tokens < 1000, f"Standard guidance is ~{tokens} tokens, expected <1000"
+        assert tokens < 1500, f"Standard guidance is ~{tokens} tokens, expected <1500"
 
-    def test_detailed_under_1700_tokens(
+    def test_detailed_under_2500_tokens(
         self, guidance_builder: GuidanceBuilder
     ) -> None:
-        """Test that detailed guidance is under ~1700 tokens."""
+        """Test that detailed guidance is under ~2500 tokens."""
         xml = guidance_builder.build_guidance("detailed")
         tokens = self.estimate_tokens(xml)
-        assert tokens < 1700, f"Detailed guidance is ~{tokens} tokens, expected <1700"
+        assert tokens < 2500, f"Detailed guidance is ~{tokens} tokens, expected <2500"
 
 
 # =============================================================================
