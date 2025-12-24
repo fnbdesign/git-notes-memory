@@ -74,6 +74,9 @@ dmypy.json
 *.swo
 *~
 
+# macOS
+.DS_Store
+
 # Project-specific
 .cs-session-state.json
 .prompt-log.json
