@@ -17,6 +17,7 @@ from __future__ import annotations
 import fcntl
 import logging
 import os
+import random
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -37,6 +38,9 @@ from git_notes_memory.exceptions import (
 from git_notes_memory.git_ops import GitOps
 from git_notes_memory.models import CaptureResult, Memory
 from git_notes_memory.note_parser import serialize_note
+from git_notes_memory.observability.decorators import measure_duration
+from git_notes_memory.observability.metrics import get_metrics
+from git_notes_memory.observability.tracing import trace_operation
 
 if TYPE_CHECKING:
     from git_notes_memory.embedding import EmbeddingService
@@ -91,8 +95,11 @@ def _acquire_lock(lock_path: Path, timeout: float = 10.0) -> Iterator[None]:
 
         # Acquire exclusive lock with timeout using non-blocking retry loop
         # CRIT-001: Prevents indefinite blocking if lock is held
+        # Uses exponential backoff with jitter to reduce contention under high concurrency
         deadline = time.monotonic() + timeout
-        retry_interval = 0.1  # 100ms between retries
+        base_interval = 0.05  # Start with 50ms
+        max_interval = 2.0  # Cap at 2 seconds
+        attempt = 0
 
         while True:
             try:
@@ -105,7 +112,12 @@ def _acquire_lock(lock_path: Path, timeout: float = 10.0) -> Iterator[None]:
                         f"Lock acquisition timed out after {timeout}s",
                         "Another capture may be in progress, wait and retry",
                     ) from None
-                time.sleep(retry_interval)
+                # Exponential backoff: 50ms, 100ms, 200ms, ... up to max_interval
+                # Add jitter (0-10% of interval) to prevent thundering herd
+                interval = min(base_interval * (2**attempt), max_interval)
+                jitter = random.uniform(0, interval * 0.1)  # noqa: S311
+                time.sleep(interval + jitter)
+                attempt += 1
             except OSError as e:
                 raise CaptureError(
                     f"Failed to acquire capture lock: {e}",
@@ -123,6 +135,11 @@ def _acquire_lock(lock_path: Path, timeout: float = 10.0) -> Iterator[None]:
             except OSError as e:
                 # Log warning rather than silently ignoring - helps debug lock issues
                 logger.warning("Failed to release capture lock %s: %s", lock_path, e)
+                metrics = get_metrics()
+                metrics.increment(
+                    "silent_failures_total",
+                    labels={"location": "capture.lock_release"},
+                )
 
 
 # =============================================================================
@@ -422,6 +439,7 @@ class CaptureService:
     # Core Capture Method
     # =========================================================================
 
+    @measure_duration("memory_capture")
     def capture(
         self,
         namespace: str,
@@ -561,86 +579,115 @@ class CaptureService:
         Args:
             filter_warnings: Optional list of warnings from secrets filtering.
         """
-        # Resolve commit SHA
-        try:
-            commit_info = self.git_ops.get_commit_info(commit)
-            commit_sha = commit_info.sha
-        except Exception as e:
-            raise CaptureError(
-                f"Failed to resolve commit '{commit}': {e}",
-                "Ensure you're in a git repository with valid commits",
-            ) from e
+        metrics = get_metrics()
 
-        # Determine note index (count existing notes by "---" pairs in this namespace)
-        try:
-            existing_note = self.git_ops.show_note(namespace, commit_sha)
-            index = existing_note.count("\n---\n") // 2 + 1 if existing_note else 0
-        except Exception:
-            index = 0
+        with trace_operation("capture", labels={"namespace": namespace}):
+            # Resolve commit SHA
+            with trace_operation("capture.resolve_commit"):
+                try:
+                    commit_info = self.git_ops.get_commit_info(commit)
+                    commit_sha = commit_info.sha
+                except Exception as e:
+                    raise CaptureError(
+                        f"Failed to resolve commit '{commit}': {e}",
+                        "Ensure you're in a git repository with valid commits",
+                    ) from e
 
-        # Build memory ID
-        memory_id = f"{namespace}:{commit_sha}:{index}"
+            # Determine note index (count existing notes by "---" pairs)
+            with trace_operation("capture.count_existing"):
+                try:
+                    existing_note = self.git_ops.show_note(namespace, commit_sha)
+                    index = (
+                        existing_note.count("\n---\n") // 2 + 1 if existing_note else 0
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to count existing notes for %s:%s: %s",
+                        namespace,
+                        commit_sha[:8],
+                        e,
+                    )
+                    metrics.increment(
+                        "silent_failures_total",
+                        labels={"location": "capture.count_existing"},
+                    )
+                    index = 0
 
-        # Write to git notes (append for safety)
-        try:
-            self.git_ops.append_note(namespace, note_content, commit_sha)
-            logger.info("Captured memory: %s", memory_id)
-        except Exception as e:
-            raise CaptureError(
-                f"Failed to write git note: {e}",
-                "Check git repository status and permissions",
-            ) from e
+            # Build memory ID
+            memory_id = f"{namespace}:{commit_sha}:{index}"
 
-        # Create Memory object
-        memory = Memory(
-            id=memory_id,
-            commit_sha=commit_sha,
-            namespace=namespace,
-            summary=summary,
-            content=content,
-            timestamp=timestamp,
-            spec=spec,
-            phase=phase,
-            tags=tags,
-            status=status,
-            relates_to=relates_to,
-        )
+            # Write to git notes (append for safety)
+            with trace_operation("capture.git_append"):
+                try:
+                    self.git_ops.append_note(namespace, note_content, commit_sha)
+                    logger.info("Captured memory: %s", memory_id)
+                except Exception as e:
+                    raise CaptureError(
+                        f"Failed to write git note: {e}",
+                        "Check git repository status and permissions",
+                    ) from e
 
-        # Try to index (graceful degradation)
-        indexed = False
-        warnings: list[str] = list(filter_warnings) if filter_warnings else []
+            # Create Memory object
+            memory = Memory(
+                id=memory_id,
+                commit_sha=commit_sha,
+                namespace=namespace,
+                summary=summary,
+                content=content,
+                timestamp=timestamp,
+                spec=spec,
+                phase=phase,
+                tags=tags,
+                status=status,
+                relates_to=relates_to,
+            )
 
-        if self._index_service is not None:
-            try:
-                # Generate embedding if service available
-                embedding: list[float] | None = None
-                if self._embedding_service is not None:
+            # Try to index (graceful degradation)
+            # Initialize warnings list with any filter warnings from secrets filtering
+            indexed = False
+            warnings: list[str] = list(filter_warnings) if filter_warnings else []
+
+            if self._index_service is not None:
+                with trace_operation("capture.index"):
                     try:
-                        # Combine summary and content for embedding
-                        embed_text = f"{summary}\n\n{content}"
-                        embedding = self._embedding_service.embed(embed_text)
+                        # Generate embedding if service available
+                        embedding: list[float] | None = None
+                        if self._embedding_service is not None:
+                            with trace_operation("capture.embed"):
+                                try:
+                                    # Combine summary and content for embedding
+                                    embed_text = f"{summary}\n\n{content}"
+                                    embedding = self._embedding_service.embed(
+                                        embed_text
+                                    )
+                                except Exception as e:
+                                    warnings.append(f"Embedding failed: {e}")
+                                    logger.warning("Embedding generation failed: %s", e)
+
+                        # Insert into index
+                        self._index_service.insert(memory, embedding)
+                        indexed = True
+                        logger.debug("Indexed memory: %s", memory_id)
+
                     except Exception as e:
-                        warnings.append(f"Embedding failed: {e}")
-                        logger.warning("Embedding generation failed: %s", e)
+                        warnings.append(f"Indexing failed: {e}")
+                        logger.warning("Indexing failed for %s: %s", memory_id, e)
 
-                # Insert into index
-                self._index_service.insert(memory, embedding)
-                indexed = True
-                logger.debug("Indexed memory: %s", memory_id)
+            # Increment counter on successful capture
+            metrics.increment(
+                "memories_captured_total",
+                labels={"namespace": namespace},
+            )
 
-            except Exception as e:
-                warnings.append(f"Indexing failed: {e}")
-                logger.warning("Indexing failed for %s: %s", memory_id, e)
+            # Combine all warnings into a single string (or None if no warnings)
+            combined_warning = "; ".join(warnings) if warnings else None
 
-        # Combine all warnings into a single string (or None if no warnings)
-        combined_warning = "; ".join(warnings) if warnings else None
-
-        return CaptureResult(
-            success=True,
-            memory=memory,
-            indexed=indexed,
-            warning=combined_warning,
-        )
+            return CaptureResult(
+                success=True,
+                memory=memory,
+                indexed=indexed,
+                warning=combined_warning,
+            )
 
     # =========================================================================
     # Convenience Capture Methods
